@@ -1,0 +1,17 @@
+# Node dependencies
+node
+
+# Release / packaging
+.release/
+*.zip
+
+# Editor
+.vscode/
+
+# OS junk
+Thumbs.db
+.DS_Store
+
+# Backups
+*.bak
+

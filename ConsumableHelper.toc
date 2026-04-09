@@ -1,0 +1,22 @@
+## Interface: 110002,110207,120000,120001,11508,20505,50503
+## Title: ConsumableHelper
+## Notes: Auction House consumable helper
+## IconTexture: Interface\AddOns\ConsumableHelper\Art\Icons\ConsumableHelperIcon
+## Author: Duffyboyo
+## Version: 1.0.0
+## SavedVariables: ConsumableHelperDB
+
+## Category: Auctions
+## Category-deDE: Auktionen
+## Category-esES: Subastas
+## Category-esMX: Subastas
+## Category-frFR: Ventes
+## Category-itIT: Aste
+## Category-koKR: 경매
+## Category-ptBR: Leilões
+## Category-ruRU: Аукционы
+## Category-zhCN: 拍卖
+## Category-zhTW: 拍賣
+
+Data.lua
+Core.lua
