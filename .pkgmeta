@@ -1,0 +1,7 @@
+package-as: ConsumableHelper
+
+ignore:
+  - .github
+  - .gitignore
+  - README.md
+  - duffbis_scraper
