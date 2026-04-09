@@ -31,7 +31,6 @@ A lightweight World of Warcraft addon that displays recommended consumables and 
 | Command | Description |
 |---|---|
 | `/consumablehelper` or `/ch` | Toggle the ConsumableHelper window |
-| `/chelp debug` | Toggle debug logging |
 
 ## License
 
