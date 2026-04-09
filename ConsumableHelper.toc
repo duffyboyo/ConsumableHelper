@@ -1,4 +1,4 @@
-## Interface: 110002,110207,120000,120001,11508,20505,50503
+## Interface: 120001
 ## Title: ConsumableHelper
 ## Notes: A lightweight addon to help with auction House consumables for all classes and specs.
 ## IconTexture: Interface\AddOns\ConsumableHelper\Art\Icons\ConsumableHelperIcon

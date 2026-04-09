@@ -9,7 +9,7 @@ A lightweight World of Warcraft addon that displays recommended consumables and 
 - **Tabbed interface** — Switch between Consumables and Enchants tabs.
 - **Auto-show** — The panel appears alongside the Auction House when opened, and hides when it closes.
 - **Slash command toggle** — Use `/consumablehelper` or `/ch` to open the window anywhere.
-- **Debug mode** — `/chelp debug` toggles verbose logging for troubleshooting.
+- **Debug mode** — `/ch debug` or `/consumablehelper debug` toggles verbose logging for troubleshooting.
 
 ## Installation
 
