@@ -1,0 +1,32 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get version from tag
+        id: version
+        run: echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+
+      - name: Create addon zip
+        run: |
+          mkdir -p release/ConsumableHelper
+          cp -r Art Core.lua Data.lua ConsumableHelper.toc LICENSE release/ConsumableHelper/
+          cd release
+          zip -r ../ConsumableHelper-${{ steps.version.outputs.tag }}.zip ConsumableHelper
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ConsumableHelper-${{ steps.version.outputs.tag }}.zip
+          generate_release_notes: true
