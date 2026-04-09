@@ -526,20 +526,7 @@ end)
 -- /consumablehelper or /ch — toggle window outside the AH
 SLASH_CONSUMABLEHELPER1 = "/consumablehelper"
 SLASH_CONSUMABLEHELPER2 = "/ch"
-SlashCmdList["CONSUMABLEHELPER"] = function()
-    local frame = CreateMainFrame()
-    if frame:IsShown() then
-        frame:Hide()
-    else
-        frame:ClearAllPoints()
-        frame:SetPoint("CENTER")
-        frame:Show()
-    end
-end
-
--- /chelp <subcommand>
-SLASH_CHELP1 = "/chelp"
-SlashCmdList["CHELP"] = function(msg)
+SlashCmdList["CONSUMABLEHELPER"] = function(msg)
     local cmd = (msg or ""):lower():trim()
     if cmd == "debug" then
         ConsumableHelperDB.debugEnabled = not ConsumableHelperDB.debugEnabled
@@ -548,9 +535,18 @@ SlashCmdList["CHELP"] = function(msg)
         else
             print("|cff00ccff[ConsumableHelper]|r Debug logging |cffff0000disabled|r")
         end
+    elseif cmd == "" then
+        local frame = CreateMainFrame()
+        if frame:IsShown() then
+            frame:Hide()
+        else
+            frame:ClearAllPoints()
+            frame:SetPoint("CENTER")
+            frame:Show()
+        end
     else
         print("|cff00ccff[ConsumableHelper]|r commands:")
-        print("  /chelp debug — toggle debug logging")
-        print("  /consumablehelper — toggle the ConsumableHelper window")
+        print("  /ch — toggle the ConsumableHelper window")
+        print("  /ch debug — toggle debug logging")
     end
 end
