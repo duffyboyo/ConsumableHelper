@@ -3,7 +3,7 @@
 ## Notes: A lightweight addon to help with auction House consumables for all classes and specs.
 ## IconTexture: Interface\AddOns\ConsumableHelper\Art\Icons\ConsumableHelperIcon
 ## Author: Duffyboyo
-## Version: 1.0.0
+## Version: @project-version@
 ## SavedVariables: ConsumableHelperDB
 
 ## Category: Auctions

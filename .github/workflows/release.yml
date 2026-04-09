@@ -22,6 +22,7 @@ jobs:
         run: |
           mkdir -p release/ConsumableHelper
           cp -r Art Core.lua Data.lua ConsumableHelper.toc LICENSE release/ConsumableHelper/
+          sed -i "s/@project-version@/${{ steps.version.outputs.tag }}/g" release/ConsumableHelper/ConsumableHelper.toc
           cd release
           zip -r ../ConsumableHelper-${{ steps.version.outputs.tag }}.zip ConsumableHelper
 
