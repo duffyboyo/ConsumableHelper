@@ -252,7 +252,7 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
             local qIcon = row:CreateTexture(nil, "ARTWORK")
             qIcon:SetSize(12, 12)
             qIcon:SetPoint("RIGHT", row, "RIGHT", -offsetFromRight - 12, 0)
-            qIcon:SetAtlas("Professions-Icon-Quality-12-Tier" .. qi .. "-Small", false)
+            qIcon:SetAtlas("Professions-Icon-Quality-12-Tier" .. qi, false)
 
             local qText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
             qText:SetPoint("LEFT", qIcon, "RIGHT", 1, 0)
