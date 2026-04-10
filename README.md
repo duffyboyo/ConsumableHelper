@@ -26,7 +26,7 @@ A lightweight World of Warcraft addon that displays recommended consumables and 
 - Click an item row to search the AH for that item.
 - Switch between **Consumables**, **Enchants**, and **Utility** tabs.
 - Use `/ch` to toggle the window outside of the Auction House.
-- Test different specs with `/ch show <class> <spec>` (e.g., `/ch show paladin ret` for Paladin Retribution).
+- Show different specs with `/ch show <class> <spec>` (e.g., `/ch show paladin retribution`).
 - Reset test mode with `/ch reset`.
 
 ## Slash Commands
@@ -35,7 +35,7 @@ A lightweight World of Warcraft addon that displays recommended consumables and 
 |---|---|
 | `/consumablehelper` or `/ch` | Toggle the ConsumableHelper window |
 | `/ch debug` | Toggle debug logging |
-| `/ch show <class> <spec>` | Simulate recommendations for a specific class/spec (e.g., `/ch show paladin ret`) |
+| `/ch show <class> <spec>` | Show recommendations for a specific class/spec (e.g., `/ch show paladin ret`) |
 | `/ch reset` | Reset test mode back to your current spec |
 
 ## License
