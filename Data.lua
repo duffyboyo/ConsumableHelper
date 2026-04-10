@@ -46,6 +46,75 @@ local EVOKER_DEVASTATION = 1467
 local EVOKER_PRESERVATION = 1468
 local EVOKER_AUGMENTATION = 1473
 
+-- Class and spec name mappings for command parsing
+ConsumableHelper.ClassSpecs = {
+    ["paladin"] = {
+        ["holy"] = PALADIN_HOLY,
+        ["protection"] = PALADIN_PROTECTION,
+        ["retribution"] = PALADIN_RETRIBUTION,
+    },
+    ["mage"] = {
+        ["arcane"] = MAGE_ARCANE,
+        ["fire"] = MAGE_FIRE,
+        ["frost"] = MAGE_FROST,
+    },
+    ["warrior"] = {
+        ["arms"] = WARRIOR_ARMS,
+        ["fury"] = WARRIOR_FURY,
+        ["protection"] = WARRIOR_PROT,
+    },
+    ["druid"] = {
+        ["balance"] = DRUID_BALANCE,
+        ["feral"] = DRUID_FERAL,
+        ["guardian"] = DRUID_GUARDIAN,
+        ["restoration"] = DRUID_RESTORATION,
+    },
+    ["deathknight"] = {
+        ["blood"] = DEATHKNIGHT_BLOOD,
+        ["frost"] = DEATHKNIGHT_FROST_DK,
+        ["unholy"] = DEATHKNIGHT_UNHOLY,
+    },
+    ["hunter"] = {
+        ["beastmastery"] = HUNTER_BEAST_MASTERY,
+        ["marksmanship"] = HUNTER_MARKSMANSHIP,
+        ["survival"] = HUNTER_SURVIVAL,
+    },
+    ["priest"] = {
+        ["discipline"] = PRIEST_DISCIPLINE,
+        ["holy"] = PRIEST_HOLY,
+        ["shadow"] = PRIEST_SHADOW,
+    },
+    ["rogue"] = {
+        ["assassination"] = ROGUE_ASSASSINATION,
+        ["outlaw"] = ROGUE_OUTLAW,
+        ["subtlety"] = ROGUE_SUBTLETY,
+    },
+    ["shaman"] = {
+        ["elemental"] = SHAMAN_ELEMENTAL,
+        ["enhancement"] = SHAMAN_ENHANCEMENT,
+        ["restoration"] = SHAMAN_RESTORATION,
+    },
+    ["warlock"] = {
+        ["affliction"] = WARLOCK_AFFLICTION,
+        ["demonology"] = WARLOCK_DEMONOLOGY,
+        ["destruction"] = WARLOCK_DESTRUCTION,
+    },
+    ["monk"] = {
+        ["brewmaster"] = MONK_BREWMASTER,
+        ["windwalker"] = MONK_WINDWALKER,
+        ["mistweaver"] = MONK_MISTWEAVER,
+    },
+    ["demonhunter"] = {
+        ["havoc"] = DEMONHUNTER_HAVOC,
+        ["vengeance"] = DEMONHUNTER_VENGEANCE,
+    },
+    ["evoker"] = {
+        ["devastation"] = EVOKER_DEVASTATION,
+        ["preservation"] = EVOKER_PRESERVATION,
+        ["augmentation"] = EVOKER_AUGMENTATION,
+    },
+}
+
 ConsumableHelper.ConsumableData = {
     ---------------------------------------------------------------------------
     -- Flask

@@ -35,11 +35,21 @@ local currentClassFile
 local activeTab = "consumables"  -- "consumables", "enchants", or "utility"
 local tabButtons = {}
 local itemCacheWarmed = false
+local testSpecID = nil
+local testClassName = nil
 
 -------------------------------------------------------------------------------
 -- Class / Spec Detection
 -------------------------------------------------------------------------------
 local function DetectClassAndSpec()
+    if testSpecID and testClassName then
+        local _, specName = GetSpecializationInfoForSpecID(testSpecID)
+        specName = specName or "Test Spec"
+        currentClassFile = testClassName:upper()
+        currentSpecID = testSpecID
+        DebugPrint("Showing consumables for: " .. tostring(currentClassFile) .. ", spec: " .. tostring(specName) .. " (ID: " .. tostring(testSpecID) .. ")")
+        return currentClassFile, testSpecID, specName
+    end
     local _, classFile = UnitClass("player")
     local specIndex = GetSpecialization()
     local specID, specName
@@ -47,7 +57,7 @@ local function DetectClassAndSpec()
         specID, specName = GetSpecializationInfo(specIndex)
     end
     currentClassFile = classFile
-    currentSpecID    = specID
+    currentSpecID = specID
     DebugPrint("Detected class: " .. tostring(classFile) .. ", spec: " .. tostring(specName) .. " (ID: " .. tostring(specID) .. ")")
     return classFile, specID, specName
 end
@@ -669,13 +679,49 @@ end)
 SLASH_CONSUMABLEHELPER1 = "/consumablehelper"
 SLASH_CONSUMABLEHELPER2 = "/ch"
 SlashCmdList["CONSUMABLEHELPER"] = function(msg)
-    local cmd = (msg or ""):lower():trim()
+    local cmd, arg1, arg2 = strsplit(" ", (msg or ""):lower():trim())
     if cmd == "debug" then
         ConsumableHelperDB.debugEnabled = not ConsumableHelperDB.debugEnabled
         if ConsumableHelperDB.debugEnabled then
             print("|cff00ccff[ConsumableHelper]|r Debug logging |cff00ff00enabled|r")
         else
             print("|cff00ccff[ConsumableHelper]|r Debug logging |cffff0000disabled|r")
+        end
+    elseif cmd == "show" and arg1 and arg2 then
+        local className = arg1:lower()
+        local specName = arg2:lower()
+        -- Map class and spec names to spec IDs
+        local classSpecs = ConsumableHelper.ClassSpecs
+        local matches = {}
+        for spec, id in pairs(classSpecs[className]) do
+            if spec:sub(1, #specName) == specName then
+                table.insert(matches, {spec = spec, id = id})
+            end
+        end
+        if #matches == 1 then
+            local specID = matches[1].id
+            local fullSpecName = matches[1].spec
+            testClassName = className
+            testSpecID = specID
+            print("|cff00ccff[ConsumableHelper]|r Showing consumables for: " .. className:gsub("^%l", string.upper) .. " " .. fullSpecName:gsub("^%l", string.upper) .. " (ID: " .. specID .. ")")
+            if mainFrame and mainFrame:IsShown() then
+                PopulateContent()
+            end
+        elseif #matches > 1 then
+            local matchSpecs = {}
+            for _, m in ipairs(matches) do
+                table.insert(matchSpecs, m.spec)
+            end
+            print("|cff00ccff[ConsumableHelper]|r Ambiguous spec '" .. specName .. "' matches: " .. table.concat(matchSpecs, ", "))
+        else
+            print("|cff00ccff[ConsumableHelper]|r No matching spec found for '" .. specName .. "' in class '" .. className .. "'")
+        end
+    elseif cmd == "reset" then
+        testSpecID = nil
+        testClassName = nil
+        print("|cff00ccff[ConsumableHelper]|r Reset shown spec to current player specialization")
+        if mainFrame and mainFrame:IsShown() then
+            PopulateContent()
         end
     elseif cmd == "" then
         local frame = CreateMainFrame()
@@ -690,5 +736,7 @@ SlashCmdList["CONSUMABLEHELPER"] = function(msg)
         print("|cff00ccff[ConsumableHelper]|r commands:")
         print("  /ch — toggle the ConsumableHelper window")
         print("  /ch debug — toggle debug logging")
+        print("  /ch show <class> <spec> — show consumables for a specific spec (e.g., /ch show paladin ret)")
+        print("  /ch reset — reset shown spec to current player specialization")
     end
 end
