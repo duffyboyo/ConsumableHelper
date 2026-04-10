@@ -34,6 +34,7 @@ local currentSpecID
 local currentClassFile
 local activeTab = "consumables"  -- "consumables" or "enchants"
 local tabButtons = {}
+local itemCacheWarmed = false
 
 -------------------------------------------------------------------------------
 -- Class / Spec Detection
@@ -95,6 +96,30 @@ local function GetFilteredData(sourceData, classFile, specID)
 end
 
 -------------------------------------------------------------------------------
+-- Item Cache Warming
+-- Pre-request all item data so names/icons are available instantly
+-------------------------------------------------------------------------------
+local function WarmItemCache()
+    if itemCacheWarmed then return end
+    itemCacheWarmed = true
+    local count = 0
+    local function cacheItems(dataTable)
+        if not dataTable then return end
+        for _, categoryData in ipairs(dataTable) do
+            for _, itemData in ipairs(categoryData.items) do
+                if itemData.itemId then
+                    C_Item.RequestLoadItemDataByID(itemData.itemId)
+                    count = count + 1
+                end
+            end
+        end
+    end
+    cacheItems(ConsumableHelper.ConsumableData)
+    cacheItems(ConsumableHelper.EnchantData)
+    DebugPrint("Warming item cache: requested " .. count .. " items")
+end
+
+-------------------------------------------------------------------------------
 -- Auction House Search
 -------------------------------------------------------------------------------
 local function SearchAuctionHouseByName(itemName)
@@ -137,6 +162,30 @@ local function CreateCategoryHeader(parent, text, yOffset)
 end
 
 -- Single item row: [icon] [name]
+-- pendingItems tracks rows awaiting async item data (keyed by itemId)
+local pendingItems = {}
+local pendingEventFrame
+
+local function EnsurePendingEventFrame()
+    if pendingEventFrame then return end
+    pendingEventFrame = CreateFrame("Frame")
+    pendingEventFrame:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+    pendingEventFrame:SetScript("OnEvent", function(_, _, loadedId)
+        local entries = pendingItems[loadedId]
+        if not entries then return end
+        local tex = C_Item.GetItemIconByID(loadedId)
+        local name = C_Item.GetItemNameByID(loadedId)
+        for _, entry in ipairs(entries) do
+            if tex then entry.icon:SetTexture(tex) end
+            if name then
+                entry.nameText:SetText(name)
+                entry.displayName = name
+            end
+        end
+        pendingItems[loadedId] = nil
+    end)
+end
+
 local function CreateItemRow(parent, itemData, yOffset, rowIndex)
     local row = CreateFrame("Button", nil, parent)
     row:SetSize(CONTENT_WIDTH, ROW_HEIGHT)
@@ -162,28 +211,6 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
     icon:SetSize(26, 26)
     icon:SetPoint("LEFT", 6, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
-    if itemData.itemId then
-        local iconId = C_Item.GetItemIconByID(itemData.itemId)
-        if iconId then
-            icon:SetTexture(iconId)
-        else
-            icon:SetTexture(134400) -- question mark fallback
-            -- Retry after item data loads from server
-            C_Item.RequestLoadItemDataByID(itemData.itemId)
-            local id = itemData.itemId
-            local function onLoad(_, loadedId)
-                if loadedId == id then
-                    local tex = C_Item.GetItemIconByID(id)
-                    if tex then icon:SetTexture(tex) end
-                end
-            end
-            EventUtil.RegisterFrameEventAndCallbackWithHandle(row, "ITEM_DATA_LOAD_RESULT", onLoad)
-        end
-    elseif type(itemData.icon) == "string" then
-        icon:SetTexture("Interface\\Icons\\" .. itemData.icon)
-    else
-        icon:SetTexture(itemData.icon or 134400)
-    end
 
     -- Item name
     local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
@@ -191,18 +218,53 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
     nameText:SetPoint("RIGHT", row, "RIGHT", -6, 0)
     nameText:SetJustifyH("LEFT")
     nameText:SetWordWrap(false)
-    nameText:SetText(itemData.name)
 
-    -- Click row to search AH by name
+    -- Shared entry table for async updates
+    local entry = { icon = icon, nameText = nameText, displayName = itemData.name }
+
+    if itemData.itemId then
+        -- Try cached icon
+        local iconId = C_Item.GetItemIconByID(itemData.itemId)
+        icon:SetTexture(iconId or 134400)
+
+        -- Try cached localised name
+        local localName = C_Item.GetItemNameByID(itemData.itemId)
+        if localName then
+            entry.displayName = localName
+        end
+        nameText:SetText(entry.displayName)
+
+        -- If either is missing, register for async update
+        if not iconId or not localName then
+            EnsurePendingEventFrame()
+            if not pendingItems[itemData.itemId] then
+                pendingItems[itemData.itemId] = {}
+                C_Item.RequestLoadItemDataByID(itemData.itemId)
+            end
+            pendingItems[itemData.itemId][#pendingItems[itemData.itemId] + 1] = entry
+        end
+    elseif type(itemData.icon) == "string" then
+        icon:SetTexture("Interface\\Icons\\" .. itemData.icon)
+        nameText:SetText(entry.displayName)
+    else
+        icon:SetTexture(itemData.icon or 134400)
+        nameText:SetText(entry.displayName)
+    end
+
+    -- Click row to search AH by localised name
     row:SetScript("OnClick", function()
-        SearchAuctionHouseByName(itemData.name)
+        SearchAuctionHouseByName(entry.displayName)
     end)
 
-    -- Row tooltip
+    -- Row tooltip — use item ID for proper localised tooltip when possible
     row:SetScript("OnEnter", function(self)
         hlTex:Show()
         GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText(itemData.name, 1, 1, 1)
+        if itemData.itemId then
+            GameTooltip:SetItemByID(itemData.itemId)
+        else
+            GameTooltip:SetText(entry.displayName, 1, 1, 1)
+        end
         GameTooltip:AddLine("Click to search the Auction House", 0.7, 0.7, 0.7, true)
         GameTooltip:Show()
     end)
@@ -218,7 +280,8 @@ end
 -- Populate / Rebuild Content
 -------------------------------------------------------------------------------
 local function PopulateContent()
-    -- Wipe existing children
+    -- Wipe existing children and pending async lookups
+    wipe(pendingItems)
     if contentFrame then
         local children = { contentFrame:GetChildren() }
         for _, child in ipairs(children) do child:Hide(); child:SetParent(nil) end
@@ -472,6 +535,7 @@ end
 -------------------------------------------------------------------------------
 local eventFrame = CreateFrame("Frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_LOGIN")
 eventFrame:RegisterEvent("AUCTION_HOUSE_SHOW")
 eventFrame:RegisterEvent("AUCTION_HOUSE_CLOSED")
 eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
@@ -487,6 +551,11 @@ eventFrame:SetScript("OnEvent", function(_, event, arg1)
         end
         CreateOptionsPanel()
         DebugPrint("Addon loaded, config initialised")
+        return
+    end
+
+    if event == "PLAYER_LOGIN" then
+        WarmItemCache()
         return
     end
 
