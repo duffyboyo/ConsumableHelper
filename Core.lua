@@ -111,6 +111,15 @@ local function WarmItemCache()
                     C_Item.RequestLoadItemDataByID(itemData.itemId)
                     count = count + 1
                 end
+                -- Also warm quality variant IDs
+                if itemData.qualities then
+                    for _, qId in ipairs(itemData.qualities) do
+                        if qId ~= itemData.itemId then
+                            C_Item.RequestLoadItemDataByID(qId)
+                            count = count + 1
+                        end
+                    end
+                end
             end
         end
     end
@@ -213,12 +222,70 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
     icon:SetPoint("LEFT", 6, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
-    -- Item name
+    -- Item name (leave room for counts on the right)
+    local hasQualities = itemData.qualities and #itemData.qualities >= 2
     local nameText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
     nameText:SetPoint("LEFT", icon, "RIGHT", 6, 0)
-    nameText:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+    nameText:SetPoint("RIGHT", row, "RIGHT", hasQualities and -96 or -36, 0)
     nameText:SetJustifyH("LEFT")
     nameText:SetWordWrap(false)
+
+    -- Bag count display
+    local updateCount
+    if hasQualities then
+        -- Per-quality-tier display: [★]N  [★★]N  [★★★]N
+        local tierFrames = {}
+        local tierCount = #itemData.qualities
+        local tierWidth = 28
+        for qi = tierCount, 1, -1 do
+            local offsetFromRight = (tierCount - qi) * tierWidth + 4
+            local qIcon = row:CreateTexture(nil, "ARTWORK")
+            qIcon:SetSize(12, 12)
+            qIcon:SetPoint("RIGHT", row, "RIGHT", -offsetFromRight - 12, 0)
+            qIcon:SetAtlas("Professions-Icon-Quality-12-Tier" .. qi .. "-Small", false)
+
+            local qText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+            qText:SetPoint("LEFT", qIcon, "RIGHT", 1, 0)
+            qText:SetJustifyH("LEFT")
+
+            tierFrames[qi] = { icon = qIcon, text = qText, itemId = itemData.qualities[qi] }
+        end
+
+        updateCount = function()
+            for qi = 1, tierCount do
+                local tf = tierFrames[qi]
+                local count = C_Item.GetItemCount(tf.itemId, false)
+                if count > 0 then
+                    tf.text:SetText("|cff00ff00" .. count .. "|r")
+                else
+                    tf.text:SetText("|cff4a4a4a0|r")
+                end
+            end
+        end
+    else
+        -- Single count display
+        local countText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        countText:SetPoint("RIGHT", row, "RIGHT", -6, 0)
+        countText:SetJustifyH("RIGHT")
+
+        updateCount = function()
+            if itemData.itemId then
+                local count = C_Item.GetItemCount(itemData.itemId, false)
+                if count > 0 then
+                    countText:SetText("|cff00ff00" .. count .. "|r")
+                else
+                    countText:SetText("|cff666666-|r")
+                end
+            end
+        end
+    end
+    updateCount()
+
+    -- Refresh count when bags change
+    row:RegisterEvent("BAG_UPDATE_DELAYED")
+    row:SetScript("OnEvent", function()
+        updateCount()
+    end)
 
     -- Shared entry table for async updates
     local entry = { icon = icon, nameText = nameText, displayName = itemData.name }
