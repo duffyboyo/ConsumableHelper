@@ -32,7 +32,7 @@ local titleText
 local specText
 local currentSpecID
 local currentClassFile
-local activeTab = "consumables"  -- "consumables" or "enchants"
+local activeTab = "consumables"  -- "consumables", "enchants", or "utility"
 local tabButtons = {}
 local itemCacheWarmed = false
 
@@ -116,6 +116,7 @@ local function WarmItemCache()
     end
     cacheItems(ConsumableHelper.ConsumableData)
     cacheItems(ConsumableHelper.EnchantData)
+    cacheItems(ConsumableHelper.UtilityData)
     DebugPrint("Warming item cache: requested " .. count .. " items")
 end
 
@@ -290,16 +291,20 @@ local function PopulateContent()
     local classFile, specID, specName = DetectClassAndSpec()
 
     -- Pick data source based on active tab
-    local sourceData, tabLabel
+    local sourceData, tabLabel, skipFilter
     if activeTab == "enchants" then
         sourceData = ConsumableHelper.EnchantData
         tabLabel   = "Enchants"
+    elseif activeTab == "utility" then
+        sourceData = ConsumableHelper.UtilityData
+        tabLabel   = "Utility"
+        skipFilter = true
     else
         sourceData = ConsumableHelper.ConsumableData
         tabLabel   = "Consumables"
     end
 
-    local filteredData = GetFilteredData(sourceData, classFile, specID)
+    local filteredData = skipFilter and sourceData or GetFilteredData(sourceData, classFile, specID)
 
     -- Update title with tab label
     if titleText then
@@ -418,6 +423,7 @@ local function CreateMainFrame()
     local tabs = {
         { key = "consumables", label = "Consumables" },
         { key = "enchants",    label = "Enchants" },
+        { key = "utility",     label = "Utility" },
     }
     local tabXOffset = 8
     for _, tabInfo in ipairs(tabs) do
