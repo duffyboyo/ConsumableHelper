@@ -5,6 +5,7 @@ local addonName, ConsumableHelper = ...
 -------------------------------------------------------------------------------
 local defaults = {
     debugEnabled = false,
+    dataSource   = nil,  -- nil = auto-detect first available source
 }
 
 local function DebugPrint(msg)
@@ -30,6 +31,7 @@ local scrollFrame
 local contentFrame
 local titleText
 local specText
+local sourceText
 local currentSpecID
 local currentClassFile
 local activeTab = "consumables"  -- "consumables", "enchants", or "utility"
@@ -60,6 +62,45 @@ local function DetectClassAndSpec()
     currentSpecID = specID
     DebugPrint("Detected class: " .. tostring(classFile) .. ", spec: " .. tostring(specName) .. " (ID: " .. tostring(specID) .. ")")
     return classFile, specID, specName
+end
+
+-------------------------------------------------------------------------------
+-- Data Source Resolution
+-- Resolves the active source from SourceData (multi-source) or falls back
+-- to the legacy flat tables (ConsumableData / EnchantData).
+-------------------------------------------------------------------------------
+local function GetActiveSourceKey()
+    local available = ConsumableHelper.AvailableSources
+    if not available or #available == 0 then
+        return nil  -- legacy data format
+    end
+    local desired = ConsumableHelperDB and ConsumableHelperDB.dataSource
+    if desired then
+        -- Validate it exists
+        for _, key in ipairs(available) do
+            if key == desired then return key end
+        end
+    end
+    -- Default to first available
+    return available[1]
+end
+
+local function GetSourceData(sourceKey)
+    if sourceKey and ConsumableHelper.SourceData and ConsumableHelper.SourceData[sourceKey] then
+        return ConsumableHelper.SourceData[sourceKey]
+    end
+    -- Legacy fallback: flat tables on ConsumableHelper itself
+    return {
+        ConsumableData = ConsumableHelper.ConsumableData,
+        EnchantData    = ConsumableHelper.EnchantData,
+    }
+end
+
+local function GetSourceLabel(sourceKey)
+    if sourceKey and ConsumableHelper.SourceLabels and ConsumableHelper.SourceLabels[sourceKey] then
+        return ConsumableHelper.SourceLabels[sourceKey]
+    end
+    return "Default"
 end
 
 -------------------------------------------------------------------------------
@@ -133,8 +174,17 @@ local function WarmItemCache()
             end
         end
     end
-    cacheItems(ConsumableHelper.ConsumableData)
-    cacheItems(ConsumableHelper.EnchantData)
+    -- Warm all sources so switching is instant
+    if ConsumableHelper.SourceData then
+        for _, srcData in pairs(ConsumableHelper.SourceData) do
+            cacheItems(srcData.ConsumableData)
+            cacheItems(srcData.EnchantData)
+        end
+    else
+        -- Legacy fallback
+        cacheItems(ConsumableHelper.ConsumableData)
+        cacheItems(ConsumableHelper.EnchantData)
+    end
     cacheItems(ConsumableHelper.UtilityData)
     DebugPrint("Warming item cache: requested " .. count .. " items")
 end
@@ -228,7 +278,7 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
 
     -- Icon
     local icon = row:CreateTexture(nil, "ARTWORK")
-    icon:SetSize(26, 26)
+    icon:SetSize(32, 32)
     icon:SetPoint("LEFT", 6, 0)
     icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 
@@ -367,21 +417,24 @@ local function PopulateContent()
 
     local classFile, specID, specName = DetectClassAndSpec()
 
-    -- Pick data source based on active tab
+    -- Pick data source based on active tab and selected source
+    local activeSource = GetActiveSourceKey()
+    local srcTables = GetSourceData(activeSource)
+
     local sourceData, tabLabel, skipFilter
     if activeTab == "enchants" then
-        sourceData = ConsumableHelper.EnchantData
+        sourceData = srcTables.EnchantData
         tabLabel   = "Enchants"
     elseif activeTab == "utility" then
         sourceData = ConsumableHelper.UtilityData
         tabLabel   = "Utility"
         skipFilter = true
     else
-        sourceData = ConsumableHelper.ConsumableData
+        sourceData = srcTables.ConsumableData
         tabLabel   = "Consumables"
     end
 
-    local filteredData = skipFilter and sourceData or GetFilteredData(sourceData, classFile, specID)
+    local filteredData = skipFilter and sourceData or GetFilteredData(sourceData or {}, classFile, specID)
 
     -- Update title with tab label
     if titleText then
@@ -398,6 +451,10 @@ local function PopulateContent()
             specText:SetTextColor(1, 1, 1)
             specText:SetText(label)
         end
+    end
+    -- Update source indicator
+    if sourceText then
+        sourceText:SetText("|cff888888" .. GetSourceLabel(activeSource) .. "|r")
     end
 
     -- Build rows
@@ -488,6 +545,45 @@ local function CreateMainFrame()
     local closeBtn = CreateFrame("Button", nil, mainFrame, "UIPanelCloseButton")
     closeBtn:SetPoint("TOPRIGHT", -2, -2)
 
+    -- Source indicator + cycle button (top-right, below close button)
+    local available = ConsumableHelper.AvailableSources
+    if available and #available > 1 then
+        sourceText = mainFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+        sourceText:SetPoint("TOPRIGHT", closeBtn, "BOTTOMRIGHT", -4, 2)
+        sourceText:SetJustifyH("RIGHT")
+        sourceText:SetText("|cff888888" .. GetSourceLabel(GetActiveSourceKey()) .. "|r")
+
+        local srcBtn = CreateFrame("Button", nil, mainFrame)
+        srcBtn:SetSize(sourceText:GetStringWidth() + 16, 16)
+        srcBtn:SetPoint("CENTER", sourceText, "CENTER")
+        srcBtn:SetScript("OnClick", function()
+            local current = GetActiveSourceKey()
+            local nextKey
+            for i, key in ipairs(available) do
+                if key == current then
+                    nextKey = available[i % #available + 1]
+                    break
+                end
+            end
+            if nextKey then
+                ConsumableHelperDB.dataSource = nextKey
+                DebugPrint("Switched data source to: " .. nextKey)
+                PopulateContent()
+                -- Resize click target to new label width
+                srcBtn:SetWidth(sourceText:GetStringWidth() + 16)
+            end
+        end)
+        srcBtn:SetScript("OnEnter", function(self)
+            GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+            GameTooltip:SetText("Data Source", 1, 1, 1)
+            GameTooltip:AddLine("Click to cycle between data sources", 0.7, 0.7, 0.7, true)
+            GameTooltip:Show()
+        end)
+        srcBtn:SetScript("OnLeave", function()
+            GameTooltip:Hide()
+        end)
+    end
+
     -- Divider under title
     local divider = mainFrame:CreateTexture(nil, "ARTWORK")
     divider:SetHeight(1)
@@ -560,8 +656,8 @@ local function CreateMainFrame()
 
     -- Scroll frame (below tabs)
     scrollFrame = CreateFrame("ScrollFrame", "ConsumableHelperScrollFrame", mainFrame,
-                              "UIPanelScrollFrameTemplate")
-    scrollFrame:SetPoint("TOPLEFT", 6, -(47 + TAB_HEIGHT + 4))
+                              "ScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", 6, -(47 + TAB_HEIGHT + 8))
     scrollFrame:SetPoint("BOTTOMRIGHT", -28, 8)
 
     -- Content frame inside the scroll view
@@ -608,6 +704,55 @@ local function CreateOptionsPanel()
             print("|cff00ccff[ConsumableHelper]|r Debug logging |cffff0000disabled|r")
         end
     end)
+
+    -- Data source selector (only shown when multiple sources exist)
+    local available = ConsumableHelper.AvailableSources
+    local lastAnchor = debugCheck
+    if available and #available > 0 then
+        local srcLabel = panel:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        srcLabel:SetPoint("TOPLEFT", debugCheck, "BOTTOMLEFT", 0, -20)
+        srcLabel:SetText("Data Source")
+
+        local srcDesc = panel:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+        srcDesc:SetPoint("TOPLEFT", srcLabel, "BOTTOMLEFT", 0, -4)
+        srcDesc:SetText("Choose which website's recommendations to display.")
+
+        -- Simple dropdown-like button row: one button per source
+        local btnX = 0
+        local btnY = -8
+        local btnAnchor = srcDesc
+        for _, sourceKey in ipairs(available) do
+            local label = GetSourceLabel(sourceKey)
+            local btn = CreateFrame("Button", nil, panel, "UIPanelButtonTemplate")
+            btn:SetSize(110, 24)
+            btn:SetPoint("TOPLEFT", btnAnchor, "BOTTOMLEFT", btnX, btnY)
+            btn:SetText(label)
+
+            local function UpdateButtonState()
+                local active = GetActiveSourceKey()
+                if sourceKey == active then
+                    btn:GetFontString():SetTextColor(0, 1, 0)
+                else
+                    btn:GetFontString():SetTextColor(1, 1, 1)
+                end
+            end
+            UpdateButtonState()
+
+            btn:SetScript("OnClick", function()
+                ConsumableHelperDB.dataSource = sourceKey
+                print("|cff00ccff[ConsumableHelper]|r Data source set to |cff00ff00" .. label .. "|r")
+                -- Update all source buttons' highlight state
+                for _, child in ipairs({ panel:GetChildren() }) do
+                    if child.UpdateSourceState then child:UpdateSourceState() end
+                end
+                if mainFrame and mainFrame:IsShown() then PopulateContent() end
+            end)
+            btn.UpdateSourceState = UpdateButtonState
+
+            btnX = btnX + 116
+        end
+        lastAnchor = srcDesc
+    end
 
     local category = Settings.RegisterCanvasLayoutCategory(panel, "ConsumableHelper")
     Settings.RegisterAddOnCategory(category)
@@ -732,10 +877,48 @@ SlashCmdList["CONSUMABLEHELPER"] = function(msg)
             frame:SetPoint("CENTER")
             frame:Show()
         end
+    elseif cmd == "source" then
+        local available = ConsumableHelper.AvailableSources
+        if not available or #available == 0 then
+            print("|cff00ccff[ConsumableHelper]|r No data sources available.")
+        elseif arg1 and arg1 ~= "" then
+            -- Set specific source by name
+            local found = false
+            for _, key in ipairs(available) do
+                if key:lower() == arg1 then
+                    ConsumableHelperDB.dataSource = key
+                    print("|cff00ccff[ConsumableHelper]|r Data source set to |cff00ff00" .. GetSourceLabel(key) .. "|r")
+                    found = true
+                    break
+                end
+            end
+            if not found then
+                local names = {}
+                for _, key in ipairs(available) do names[#names + 1] = key end
+                print("|cff00ccff[ConsumableHelper]|r Unknown source '" .. arg1 .. "'. Available: " .. table.concat(names, ", "))
+            end
+            if mainFrame and mainFrame:IsShown() then PopulateContent() end
+        else
+            -- Cycle to next source
+            local current = GetActiveSourceKey()
+            local nextKey
+            for i, key in ipairs(available) do
+                if key == current then
+                    nextKey = available[i % #available + 1]
+                    break
+                end
+            end
+            if nextKey then
+                ConsumableHelperDB.dataSource = nextKey
+                print("|cff00ccff[ConsumableHelper]|r Data source switched to |cff00ff00" .. GetSourceLabel(nextKey) .. "|r")
+                if mainFrame and mainFrame:IsShown() then PopulateContent() end
+            end
+        end
     else
         print("|cff00ccff[ConsumableHelper]|r commands:")
         print("  /ch — toggle the ConsumableHelper window")
         print("  /ch debug — toggle debug logging")
+        print("  /ch source [name] — cycle or set data source (e.g., /ch source icyveins)")
         print("  /ch show <class> <spec> — show consumables for a specific spec (e.g., /ch show paladin ret)")
         print("  /ch reset — reset shown spec to current player specialization")
     end
