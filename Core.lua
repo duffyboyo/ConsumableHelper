@@ -296,16 +296,16 @@ local function CreateItemRow(parent, itemData, yOffset, rowIndex)
         -- Per-quality-tier display: [★]N  [★★]N  [★★★]N
         local tierFrames = {}
         local tierCount = #itemData.qualities
-        local tierWidth = 28
+        local tierWidth = 40 -- Increased for more space
         for qi = tierCount, 1, -1 do
-            local offsetFromRight = (tierCount - qi) * tierWidth + 4
+            local offsetFromRight = (tierCount - qi) * tierWidth + 18
             local qIcon = row:CreateTexture(nil, "ARTWORK")
             qIcon:SetSize(12, 12)
-            qIcon:SetPoint("RIGHT", row, "RIGHT", -offsetFromRight - 12, 0)
+            qIcon:SetPoint("RIGHT", row, "RIGHT", -offsetFromRight - 20, 0) -- Increased from 16 to 20
             qIcon:SetAtlas("Professions-Icon-Quality-12-Tier" .. qi, false)
 
             local qText = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-            qText:SetPoint("LEFT", qIcon, "RIGHT", 1, 0)
+            qText:SetPoint("LEFT", qIcon, "RIGHT", 8, 0) -- Increased from 1 to 8
             qText:SetJustifyH("LEFT")
 
             tierFrames[qi] = { icon = qIcon, text = qText, itemId = itemData.qualities[qi] }
