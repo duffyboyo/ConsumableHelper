@@ -1,0 +1,6 @@
+package-as: ConsumableHelper
+
+ignore:
+  - .github
+  - .gitignore
+  - README.md
